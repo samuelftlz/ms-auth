@@ -16,12 +16,15 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final TokenRepository tokenRepository;
+    private final LoginAttemptService loginAttemptService;
 
-    public AuthService(UserRepository userRepository, TokenRepository tokenRepository) {
+    public AuthService(UserRepository userRepository,
+                       TokenRepository tokenRepository,
+                       LoginAttemptService loginAttemptService) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
+        this.loginAttemptService = loginAttemptService;
     }
-
 
     @Transactional
     public AuthDto.AuthResponse signUp(AuthDto.SignUpRequest request) {
@@ -37,20 +40,32 @@ public class AuthService {
         return new AuthDto.AuthResponse(generateAndSaveToken(savedUser));
     }
 
-
     @Transactional
     public AuthDto.AuthResponse login(AuthDto.LoginRequest request) {
 
-        User user = userRepository.findByEmail(request.login())
+        String loginKey = request.login();
+
+        if (loginAttemptService.isBlocked(loginKey)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Muitas tentativas falhas. Tente novamente em 10 minutos.");
+        }
+
+        User user = userRepository.findByEmail(loginKey)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email ou senha inválidos"));
+
         if (!user.getPassword().equals(request.password())) {
+
+            loginAttemptService.loginFailed(loginKey);
+
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email ou senha inválidos");
         }
+
+        loginAttemptService.loginSucceeded(loginKey);
+
         user.setLoggedin(true);
         User savedUser = userRepository.save(user);
         return new AuthDto.AuthResponse(generateAndSaveToken(savedUser));
     }
-
 
     @Transactional
     public AuthDto.AuthResponse recoverPassword(AuthDto.RecoverPasswordRequest request) {
