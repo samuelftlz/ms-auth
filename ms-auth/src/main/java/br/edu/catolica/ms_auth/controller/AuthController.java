@@ -1,7 +1,6 @@
 package br.edu.catolica.ms_auth.controller;
 
 import br.edu.catolica.ms_auth.dto.AuthDto;
-import br.edu.catolica.ms_auth.model.User;
 import br.edu.catolica.ms_auth.service.AuthService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,9 +26,15 @@ public class AuthController {
         return ResponseEntity.ok(authService.login(request));
     }
 
-    @PostMapping("/recuperar-senha")
-    public ResponseEntity<AuthDto.AuthResponse> recoverPassword(@RequestBody AuthDto.RecoverPasswordRequest request) {
-        return ResponseEntity.ok(authService.recoverPassword(request));
+    @PostMapping("/request-password-reset")
+    public ResponseEntity<AuthDto.PasswordResetResponse> requestPasswordReset(@RequestBody AuthDto.PasswordResetRequest request) {
+        return ResponseEntity.ok(authService.requestPasswordReset(request));
+    }
+
+    @PostMapping("/perform-password-reset")
+    public ResponseEntity<Void> performPasswordReset(@RequestBody AuthDto.PasswordResetPerformRequest request) {
+        authService.performPasswordReset(request);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/logout")
@@ -40,10 +45,9 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<User> getMe(@RequestHeader("Authorization") String authorizationHeader) {
+    public ResponseEntity<AuthDto.UserResponse> getMe(@RequestHeader("Authorization") String authorizationHeader) {
         String token = authService.extractToken(authorizationHeader);
-        User user = authService.getUserByToken(token);
-        return ResponseEntity.ok(user);
+        AuthDto.UserResponse userResponse = authService.getUserByToken(token);
+        return ResponseEntity.ok(userResponse);
     }
-
 }
